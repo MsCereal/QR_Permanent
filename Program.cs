@@ -5,9 +5,8 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Railway sets PORT env variable — must bind to it
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+// .NET 8 reads HTTP_PORTS/ASPNETCORE_HTTP_PORTS automatically from Railway
+// Do NOT set UseUrls manually — it overrides Railway's port binding
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
@@ -67,5 +66,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-Console.WriteLine($"[STARTUP] App running on port {port}");
+Console.WriteLine($"[STARTUP] App starting, HTTP_PORTS={Environment.GetEnvironmentVariable("HTTP_PORTS")}, PORT={Environment.GetEnvironmentVariable("PORT")}");
 app.Run();
