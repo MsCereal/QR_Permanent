@@ -141,7 +141,7 @@ namespace DBPQRPermanent.Controllers
 
             byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
             string filename = e.Name.Replace(" ", "-") + ".vcf";
-            Response.Headers.Add("Content-Disposition", $"attachment; filename=\"{filename}\"");
+            Response.Headers["Content-Disposition"] = $"attachment; filename=\"{filename}\"";
             return File(bytes, "text/vcard");
         }
 

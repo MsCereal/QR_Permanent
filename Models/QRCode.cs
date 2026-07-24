@@ -14,6 +14,6 @@ namespace DBPQRPermanent.Models
         [Required] public string Token { get; set; } = "";
 
         public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
-        [ForeignKey("EmpId")] public Employee Employee { get; set; }
+        [ForeignKey("EmpId")] public Employee? Employee { get; set; }
     }
 }

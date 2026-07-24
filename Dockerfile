@@ -8,7 +8,7 @@ RUN dotnet publish -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
-ENV ASPNETCORE_URLS=http://+:${PORT:-5000}
+
+# Railway sets PORT dynamically — must listen on 0.0.0.0
 ENV ASPNETCORE_ENVIRONMENT=Production
-EXPOSE 5000
-ENTRYPOINT ["dotnet", "DBPQRPermanent.dll"]
+CMD ASPNETCORE_URLS=http://0.0.0.0:$PORT dotnet DBPQRPermanent.dll
