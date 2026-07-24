@@ -5,6 +5,10 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Bind to Railway's PORT — required for Railway deployment
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -17,9 +21,11 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// SQLite — use /tmp on Railway (writable), local path in dev
-var isProduction = (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production") == "Production";
-var dbPath = isProduction ? "/tmp/dbpqr.db" : "dbpqr.db";
+// SQLite path — /tmp is writable on Railway
+var dbPath = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development"
+    ? "dbpqr.db"
+    : "/tmp/dbpqr.db";
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
@@ -27,17 +33,18 @@ builder.Services.AddScoped<QRService>();
 
 var app = builder.Build();
 
-// Create DB + seed on startup
+// Create DB + seed
 try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
     DatabaseSeeder.Seed(db);
+    Console.WriteLine("[STARTUP] DB ready.");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[STARTUP] DB init error: {ex.Message}");
+    Console.WriteLine($"[STARTUP] DB error: {ex.Message}");
 }
 
 app.UseSwagger();
@@ -61,4 +68,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
+Console.WriteLine($"[STARTUP] Listening on http://0.0.0.0:{port}");
 app.Run();
