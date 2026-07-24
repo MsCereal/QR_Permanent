@@ -56,7 +56,7 @@
     </div>
     <div class="qr-card">
         <div class="qr-frame">
-            <img src="/qr-image/@empId" alt="QR Code" id="qrImg" crossorigin="anonymous" />
+            <img src="/qr-image/@token" alt="QR Code" id="qrImg" crossorigin="anonymous" />
         </div>
         <p class="qr-label"><i class="fa-solid fa-camera" style="margin-right:6px;opacity:.7;"></i>Scan to save contact</p>
         <p class="qr-sub">Phone will prompt to save @empName's contact info</p>
@@ -70,11 +70,12 @@
 <script>
     var empId = '@empId';
     var empName = '@empName';
+    var token = '@token';
     function saveQR() {
         var btn = document.getElementById('saveBtn');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
         btn.disabled = true;
-        fetch('/qr-image/' + empId)
+        fetch('/qr-image/' + token)
             .then(function(r) { return r.blob(); })
             .then(function(blob) {
                 var url = URL.createObjectURL(blob);

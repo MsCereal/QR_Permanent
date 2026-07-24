@@ -21,7 +21,7 @@ namespace DBPQRPermanent.Controllers
             _qrService = qrService;
         }
 
-        // Generates a cryptographically random token (16 bytes = 32 hex chars)
+        // 16 random bytes = 32 hex chars — cryptographically unguessable
         private static string GenerateToken()
         {
             var bytes = new byte[16];
@@ -30,12 +30,15 @@ namespace DBPQRPermanent.Controllers
             return Convert.ToHexString(bytes).ToLower();
         }
 
+        // GET / — Welcome page
         [HttpGet("/")]
         public IActionResult Index() => View("Welcome");
 
+        // GET /generate — Enter emp ID page
         [HttpGet("/generate")]
         public IActionResult Generate() => View("Generate");
 
+        // POST /generate — look up emp, get/create token, redirect to QR screen
         [HttpPost("/generate")]
         [ValidateAntiForgeryToken]
         public IActionResult GeneratePost(string empId)
@@ -54,76 +57,66 @@ namespace DBPQRPermanent.Controllers
                 return View("Generate");
             }
 
-            // Check if QR already exists for this employee
-            var existing = _db.QRCodes.FirstOrDefault(q => q.EmpId == empId);
-            if (existing == null)
+            // Get existing QR or create new one with token
+            var qr = _db.QRCodes.FirstOrDefault(q => q.EmpId == empId);
+            if (qr == null)
             {
-                // Generate permanent random token — this never changes
-                existing = new QRCode
+                qr = new QRCode
                 {
                     EmpId = empId,
                     Token = GenerateToken(),
                     GeneratedAt = DateTime.UtcNow
                 };
-                _db.QRCodes.Add(existing);
-                _db.SaveChanges();
-            }
-
-            return RedirectToAction("QRScreen", new { empId });
-        }
-
-        [HttpGet("/qr/{empId}")]
-        public IActionResult QRScreen(string empId)
-        {
-            empId = empId.Trim().ToUpper();
-            var employee = _db.Employees.FirstOrDefault(e => e.EmpId == empId);
-            if (employee == null) return View("NotFound");
-
-            var qr = _db.QRCodes.FirstOrDefault(q => q.EmpId == empId);
-            if (qr == null)
-            {
-                qr = new QRCode { EmpId = empId, Token = GenerateToken(), GeneratedAt = DateTime.UtcNow };
                 _db.QRCodes.Add(qr);
                 _db.SaveChanges();
             }
+
+            // Redirect to token-based URL — emp ID never appears in browser address bar
+            return Redirect($"/qr/{qr.Token}");
+        }
+
+        // GET /qr/{token} — QR screen (token only, no emp ID in URL)
+        [HttpGet("/qr/{token}")]
+        public IActionResult QRScreen(string token)
+        {
+            var qr = _db.QRCodes.FirstOrDefault(q => q.Token == token);
+            if (qr == null) return View("NotFound");
+
+            var employee = _db.Employees.FirstOrDefault(e => e.EmpId == qr.EmpId);
+            if (employee == null) return View("NotFound");
 
             ViewBag.Employee = employee;
             ViewBag.Token = qr.Token;
             return View("QRScreen");
         }
 
-        // QR image endpoint — uses token in the URL embedded in QR
-        [HttpGet("/qr-image/{empId}")]
-        public IActionResult QRImage(string empId)
+        // GET /qr-image/{token} — returns QR code PNG (token-based)
+        [HttpGet("/qr-image/{token}")]
+        public IActionResult QRImage(string token)
         {
-            empId = empId.Trim().ToUpper();
-            var employee = _db.Employees.FirstOrDefault(e => e.EmpId == empId);
-            if (employee == null) return NotFound();
-
-            var qr = _db.QRCodes.FirstOrDefault(q => q.EmpId == empId);
+            var qr = _db.QRCodes.FirstOrDefault(q => q.Token == token);
             if (qr == null) return NotFound();
 
-            // QR points to token URL — emp ID is NOT in the URL
+            // The URL embedded inside the QR also uses the token
             string contactUrl = $"{Request.Scheme}://{Request.Host}/contact/{qr.Token}";
             byte[] qrBytes = _qrService.GenerateQRCode(contactUrl);
             return File(qrBytes, "image/png");
         }
 
-        // Token-based contact endpoint — no emp ID exposed
-        // /contact/a7f3k9x2m4q8b1p5  (unguessable random token)
+        // GET /contact/{token} — scanned by phone, returns vCard to save contact
+        // URL looks like: /contact/a7f3k9x2m4q8b1p5  — unguessable
         [HttpGet("/contact/{token}")]
         public IActionResult Contact(string token)
         {
-            // Look up by token — not by emp ID
             var qr = _db.QRCodes.FirstOrDefault(q => q.Token == token);
             if (qr == null) return NotFound();
 
             var e = _db.Employees.FirstOrDefault(emp => emp.EmpId == qr.EmpId);
             if (e == null) return NotFound();
 
-            string lastName = e.Name.Contains(" ") ? e.Name.Substring(e.Name.LastIndexOf(' ') + 1) : "";
+            string lastName  = e.Name.Contains(" ") ? e.Name.Substring(e.Name.LastIndexOf(' ') + 1) : "";
             string firstName = e.Name.Contains(" ") ? e.Name.Substring(0, e.Name.IndexOf(' ')) : e.Name;
-            string telFull = e.TelOffice + (!string.IsNullOrWhiteSpace(e.TelLocal) ? $" loc. {e.TelLocal}" : "");
+            string telFull   = e.TelOffice + (!string.IsNullOrWhiteSpace(e.TelLocal) ? $" loc. {e.TelLocal}" : "");
 
             var sb = new StringBuilder();
             sb.Append("BEGIN:VCARD\r\n");
