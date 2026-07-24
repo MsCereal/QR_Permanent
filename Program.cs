@@ -5,8 +5,9 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// .NET 8 reads HTTP_PORTS/ASPNETCORE_HTTP_PORTS automatically from Railway
-// Do NOT set UseUrls manually — it overrides Railway's port binding
+// Railway sets PORT=8080 — force IPv4 binding (Railway proxy needs 0.0.0.0 not [::])
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseKestrel(options => options.ListenAnyIP(int.Parse(port)));
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
