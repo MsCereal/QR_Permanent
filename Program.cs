@@ -22,7 +22,13 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    // In production (Railway), use /tmp which is always writable
+    var dbPath = builder.Environment.IsProduction()
+        ? "/tmp/dbpqr.db"
+        : "dbpqr.db";
+    options.UseSqlite($"Data Source={dbPath}");
+});
 builder.Services.AddScoped<QRService>();
 
 var app = builder.Build();
